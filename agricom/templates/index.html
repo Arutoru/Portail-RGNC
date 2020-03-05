@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+  {% block javascript %}
+  {{ block.super }}
+  <script type="text/javascript">
+    // On définit une boucle qui parcourera une liste contenant les fichiers json
+    var dataurls = ['{% url "region_data" %}','{% url "borne_data" %}'] ;
+    window.addEventListener("map:init", function (event) {
+      for (var i=0, c=dataurls.length; i<c; i++){
+        //Définition des variables globales
+        var dataurl = dataurls[i];
+        var map = event.detail.map;
+        var lc = map.layerscontrol;
+        var control;
+        var content;
+        // Téléchargement des fichiers GEOJSON avec Ajax
+        var file = fetch(dataurl).then(function(resp) {
+            return resp.json();
+          });
+        // Définition de la symbologie pour les régions
+        // function colors(feature){
+        //   var props = feature.properties;
+        //   if (props.model == "reporter.region"){
+        //       switch(props.nom){
+        //         case'Sud':
+        //           return{
+        //             color: 'orange',
+        //             fillOpacity: 0.8
+        //           };
+        //         case'Nord':
+        //           return{
+        //             color: 'purple',
+        //             fillOpacity: 0.8
+        //           };
+        //       }};
+        // };
+        // Définition de la symbologie pour les marqueurs
+        function markers(feature, latlng){
+          var props = feature.properties;
+          var geoOptions = {
+            color:"orange",
+            radius: 4,
+            fillOpacity: 0.8
+          };
+          if (props.model == "reporter.borne"){
+                  return L.circleMarker(latlng, geoOptions);
+            }
+        };
+        // Définiton des popups et affichage des couches
+        file.then(function(data) {lc.addOverlay(
+          L.geoJson(data, {pointToLayer : markers,
+            onEachFeature: function onEachFeature(feature, layer) {
+              var props = feature.properties;
+              if (props.model == "reporter.region"){
+                control = 'Region';
+                content = `<h2 class = "popup">${props.nom}</h2><h3>${props.superficie} km²</h3><p>Date: ${props.date}</p>`;}
+              if (props.model == "reporter.borne"){
+                  control = 'Borne';
+                  content = `<img width="300" src="${props.picture_url}"/><h3 class = "popup">${props.name}</h3><p>Coord UTM: ${props.east},${props.nord}</p>`;}
+              layer.bindPopup(content);
+          }}).addTo(map),control);
+        });
+      }});
+  </script>
+  {% endblock %}
